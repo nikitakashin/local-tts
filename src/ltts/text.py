@@ -54,6 +54,15 @@ def numbers_to_words(text: str, lang: str = "ru") -> str:
     return _NUM.sub(repl, text)
 
 
+_EMPH = re.compile(r"(\*\*?)(?=\S)([^*\n]+?)(?<=\S)\1")
+
+
+def strip_emphasis(text: str) -> str:
+    """«эта булочка **очень** вкусная» -> «эта булочка очень вкусная»: для движков без эмфаз.
+    Одиночные звёздочки (2 * 3) не трогаем."""
+    return _EMPH.sub(r"\2", text)
+
+
 _LAT2 = {"sh": "ш", "ch": "ч", "zh": "ж", "th": "т", "ph": "ф", "kh": "х", "ts": "ц", "ya": "я", "yu": "ю",
          "yo": "ё", "ee": "и", "oo": "у", "ck": "к", "qu": "кв", "wh": "в"}  # fmt: skip
 _LAT1 = {"a": "а", "b": "б", "c": "к", "d": "д", "e": "е", "f": "ф", "g": "г", "h": "х", "i": "и", "j": "дж",

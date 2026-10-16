@@ -14,7 +14,7 @@ from .engines.piper import Piper
 from .engines.rhvoice import RHVoice
 from .engines.silero import Silero
 from .paths import CONFIG, OUT
-from .text import LANGS, detect_lang
+from .text import LANGS, detect_lang, strip_emphasis
 
 ENGINES: dict[str, Engine] = {e.name: e for e in (Silero(), Piper(), RHVoice(), Kokoro(), *clone_engines())}
 # порядок предпочтения по языкам: дефолтный голос, выбор голоса движка, замена голоса под язык текста
@@ -151,6 +151,8 @@ def synthesize(
     ok, why = eng.status()
     if not ok:
         raise EngineError(f"{eng.name}: {why}")
+    if not eng.supports_emphasis(name):
+        text = strip_emphasis(text)
     t = time.perf_counter()
     try:
         audio = eng.synth(text, name, speed)
