@@ -95,7 +95,7 @@ def chunks(text: str, limit: int) -> list[str]:
     for sent in filter(None, (s.strip() for s in _SENT.split(text))):
         while len(sent) > limit:  # длинное предложение режем по запятым/пробелам
             cut = max(sent.rfind(",", 0, limit), sent.rfind(" ", 0, limit))
-            cut = cut if cut > 0 else limit
+            cut = cut if cut > 0 else limit - 1
             if cur:
                 out.append(cur)
                 cur = ""
