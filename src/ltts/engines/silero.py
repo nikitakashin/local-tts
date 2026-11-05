@@ -10,12 +10,14 @@ from .base import Engine, EngineError, ModelError, Voice, ensure_valid, fetch, i
 # язык -> (модель, {голос: пол}); у английской модели 118 безымянных дикторов,
 # в каталоге — по три явно мужских/женских (отобраны по высоте голоса), остальные en_N тоже работают
 MODELS_BY_LANG = {
-    "ru": ("ru/v5_5_ru", {"xenia": "female", "kseniya": "female", "baya": "female", "aidar": "male", "eugene": "male"}),
+    "ru": ("ru/v5_6_ru", {"xenia": "female", "kseniya": "female", "baya": "female", "aidar": "male", "eugene": "male"}),
     "en": ("en/v3_en", {"en_0": "female", "en_14": "female", "en_99": "female",
                         "en_2": "male", "en_13": "male", "en_79": "male"}),
     "de": ("de/v3_de", {"eva_k": "female", "hokuspokus": "female", "bernd_ungerer": "male",
                         "friedrich": "male", "karlsson": "male"}),
 }  # fmt: skip
+# прошлые версии: со старой моделью голос считается установленным, а первый синтез скачает новую и удалит старую
+LEGACY = {"ru": ["v5_5_ru"]}
 EN_ANY = re.compile(r"en_(\d+)$")
 RATE = 48000
 CHUNK = 800  # silero не любит длинные куски
@@ -23,7 +25,7 @@ CHUNK = 800  # silero не любит длинные куски
 
 class Silero(Engine):
     name = "silero"
-    title = "Silero TTS (v5_5_ru, v3_en, v3_de)"
+    title = "Silero TTS (v5_6_ru, v3_en, v3_de)"
 
     def __init__(self) -> None:
         super().__init__()
@@ -52,10 +54,16 @@ class Silero(Engine):
         # torch.package — это zip: оборванный файл без центрального каталога сразу видно
         return ensure_valid(self._path(lang), zipfile.is_zipfile)
 
+    def _legacy(self, lang: str) -> list:
+        return [p for name in LEGACY.get(lang, []) if (p := MODELS / "silero" / f"{name}.pt").exists()]
+
+    def _installed(self, lang: str) -> bool:
+        return self._ok(lang) or bool(self._legacy(lang))
+
     def voices(self):
         out = []
         for lang, (_, speakers) in MODELS_BY_LANG.items():
-            ok = self._ok(lang)
+            ok = self._installed(lang)
             out += [Voice(self.name, s, g, ok, lang) for s, g in speakers.items()]
         return out
 
@@ -67,7 +75,7 @@ class Silero(Engine):
             return False
 
     def is_installed(self, voice):
-        return self.has_voice(voice) and self._ok(self._lang(voice))
+        return self.has_voice(voice) and self._installed(self._lang(voice))
 
     def reset(self, voice):
         lang = self._lang(voice)
@@ -79,6 +87,10 @@ class Silero(Engine):
         if not self._ok(lang):
             model = MODELS_BY_LANG[lang][0]
             fetch(f"https://models.silero.ai/models/tts/{model}.pt", self._path(lang), f"silero:{model}")
+        invalidate(*self._legacy(lang))
+
+    def supports_emphasis(self, voice):
+        return self._lang(voice) == "ru"  # **слово** и *слово* понимает только v5_6_ru, en/de — v3
 
     def _load(self, lang: str):
         if lang not in self._models:
@@ -100,6 +112,8 @@ class Silero(Engine):
 
     def synth(self, text, voice, speed=1.0):
         lang = self._lang(voice)
+        if not self._ok(lang) and self._legacy(lang):
+            self.download(voice)  # обновление со старой версии модели
         if not self._ok(lang):
             raise EngineError(f"модель silero ({lang}) не скачана — `ltts download silero:{voice}`")
         # silero молча глотает цифры, а русская модель — ещё и латиницу

@@ -65,6 +65,10 @@ class Engine:
     def synth(self, text: str, voice: str, speed: float = 1.0) -> Audio:
         raise NotImplementedError
 
+    def supports_emphasis(self, voice: str) -> bool:
+        """Понимает ли голос разметку эмфаз **слово** / *слово*; если нет, core вырезает звёздочки."""
+        return False
+
     def has_voice(self, voice: str) -> bool:
         return any(v.name == voice for v in self.voices())
 

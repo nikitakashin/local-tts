@@ -54,6 +54,15 @@ def numbers_to_words(text: str, lang: str = "ru") -> str:
     return _NUM.sub(repl, text)
 
 
+_EMPH = re.compile(r"(\*\*?)(?=\S)([^*\n]+?)(?<=\S)\1")
+
+
+def strip_emphasis(text: str) -> str:
+    """«эта булочка **очень** вкусная» -> «эта булочка очень вкусная»: для движков без эмфаз.
+    Одиночные звёздочки (2 * 3) не трогаем."""
+    return _EMPH.sub(r"\2", text)
+
+
 _LAT2 = {"sh": "ш", "ch": "ч", "zh": "ж", "th": "т", "ph": "ф", "kh": "х", "ts": "ц", "ya": "я", "yu": "ю",
          "yo": "ё", "ee": "и", "oo": "у", "ck": "к", "qu": "кв", "wh": "в"}  # fmt: skip
 _LAT1 = {"a": "а", "b": "б", "c": "к", "d": "д", "e": "е", "f": "ф", "g": "г", "h": "х", "i": "и", "j": "дж",
@@ -86,7 +95,7 @@ def chunks(text: str, limit: int) -> list[str]:
     for sent in filter(None, (s.strip() for s in _SENT.split(text))):
         while len(sent) > limit:  # длинное предложение режем по запятым/пробелам
             cut = max(sent.rfind(",", 0, limit), sent.rfind(" ", 0, limit))
-            cut = cut if cut > 0 else limit
+            cut = cut if cut > 0 else limit - 1
             if cur:
                 out.append(cur)
                 cur = ""
